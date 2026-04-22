@@ -1,0 +1,96 @@
+import { NextRequest, NextResponse } from "next/server";
+import { connectDB } from "@/lib/mongodb";
+import { isAuthenticated } from "@/lib/auth";
+import CarEntry from "@/models/CarEntry";
+
+function parseDateInput(value: string): Date | null {
+  if (!value) return null;
+  // HTML date input sends yyyy-MM-dd (no timezone). Parse as local midnight to avoid UTC shift.
+  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) return new Date(`${value}T00:00:00`);
+  const d = new Date(value);
+  return Number.isNaN(d.getTime()) ? null : d;
+}
+
+export async function GET(req: NextRequest) {
+  try {
+    const user = isAuthenticated(req);
+    if (!user) return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+
+    await connectDB();
+
+    const { searchParams } = new URL(req.url);
+    const date = searchParams.get("date");
+    const startDate = searchParams.get("startDate");
+    const endDate = searchParams.get("endDate");
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const filter: any = {};
+
+    if (date) {
+      const base = parseDateInput(date);
+      if (!base) return NextResponse.json({ message: "Invalid date" }, { status: 400 });
+      const start = new Date(base);
+      start.setHours(0, 0, 0, 0);
+      const end = new Date(base);
+      end.setHours(23, 59, 59, 999);
+      filter.date = { $gte: start, $lte: end };
+    } else if (startDate && endDate) {
+      const startBase = parseDateInput(startDate);
+      const endBase = parseDateInput(endDate);
+      if (!startBase || !endBase) {
+        return NextResponse.json({ message: "Invalid date range" }, { status: 400 });
+      }
+      const start = new Date(startBase);
+      start.setHours(0, 0, 0, 0);
+      const end = new Date(endBase);
+      end.setHours(23, 59, 59, 999);
+      filter.date = { $gte: start, $lte: end };
+    }
+
+    const entries = await CarEntry.find(filter).sort({ date: -1, createdAt: -1 });
+    return NextResponse.json({ entries }, { status: 200 });
+  } catch {
+    return NextResponse.json({ message: "Internal server error" }, { status: 500 });
+  }
+}
+
+export async function POST(req: NextRequest) {
+  try {
+    const user = isAuthenticated(req);
+    if (!user) return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+
+    await connectDB();
+
+    const body = await req.json();
+    const { carName, carNumber, amount, date, notes } = body ?? {};
+
+    const parsedAmount =
+      typeof amount === "number" ? amount : typeof amount === "string" ? Number(amount) : NaN;
+
+    if (!carName || !carNumber || Number.isNaN(parsedAmount)) {
+      return NextResponse.json({ message: "Missing or invalid required fields" }, { status: 400 });
+    }
+    if (parsedAmount < 0) {
+      return NextResponse.json({ message: "Amount must be >= 0" }, { status: 400 });
+    }
+
+    const parsedDate = typeof date === "string" ? parseDateInput(date) : null;
+    if (date && !parsedDate) {
+      return NextResponse.json({ message: "Invalid date" }, { status: 400 });
+    }
+
+    const entry = await CarEntry.create({
+      carName,
+      carNumber,
+      amount: parsedAmount,
+      date: parsedDate ?? new Date(),
+      notes,
+    });
+
+    return NextResponse.json({ entry }, { status: 201 });
+  } catch (err) {
+    const message =
+      err instanceof Error && err.message ? err.message : "Internal server error";
+    return NextResponse.json({ message }, { status: 500 });
+  }
+}
