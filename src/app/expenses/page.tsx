@@ -5,8 +5,9 @@ import AppShell from "@/components/AppShell";
 import Modal from "@/components/Modal";
 import ConfirmDialog from "@/components/ConfirmDialog";
 import { Field, Input } from "@/components/FormFields";
+import Pagination from "@/components/Pagination";
 import toast from "react-hot-toast";
-import { Plus, Pencil, Trash2, Eye, Receipt, Search, Loader2 } from "lucide-react";
+import { Plus, Pencil, Trash2, Eye, Receipt, Search, Loader2, Calendar, X } from "lucide-react";
 import { format } from "date-fns";
 
 interface Expense {
@@ -32,10 +33,93 @@ const EMPTY_FORM: ExpenseFormState = {
   date: format(new Date(), "yyyy-MM-dd"),
 };
 
+function ExpenseForm({
+  idPrefix,
+  form,
+  setForm,
+  saving,
+  onCancel,
+  onSubmit,
+}: {
+  idPrefix: string;
+  form: ExpenseFormState;
+  setForm: (next: ExpenseFormState) => void;
+  saving: boolean;
+  onCancel: () => void;
+  onSubmit: (e: React.FormEvent) => void;
+}) {
+  return (
+    <form onSubmit={onSubmit} className="space-y-4">
+      <Field label="Title" required>
+        <Input
+          id={`${idPrefix}-title`}
+          placeholder="e.g. Store Rent"
+          value={form.title}
+          onChange={(e) => setForm({ ...form, title: e.target.value })}
+          required
+        />
+      </Field>
+      <Field label="Description">
+        <textarea
+          id={`${idPrefix}-desc`}
+          placeholder="Optional description…"
+          value={form.description}
+          onChange={(e) => setForm({ ...form, description: e.target.value })}
+          rows={2}
+          className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none focus:border-slate-400 focus:bg-white transition-all resize-none"
+        />
+      </Field>
+      <div className="grid grid-cols-2 gap-3">
+        <Field label="Amount (₹)" required>
+          <Input
+            id={`${idPrefix}-amount`}
+            type="number"
+            min="0"
+            step="1"
+            placeholder="1000"
+            value={form.amount}
+            onChange={(e) => setForm({ ...form, amount: e.target.value })}
+            required
+          />
+        </Field>
+        <Field label="Date">
+          <Input
+            id={`${idPrefix}-date`}
+            type="date"
+            value={form.date}
+            onChange={(e) => setForm({ ...form, date: e.target.value })}
+          />
+        </Field>
+      </div>
+      <div className="flex gap-2.5 pt-1">
+        <button
+          type="button"
+          onClick={onCancel}
+          className="flex-1 py-2.5 rounded-xl border border-slate-200 text-slate-600 text-sm font-medium hover:bg-slate-50 transition-all"
+        >
+          Cancel
+        </button>
+        <button
+          type="submit"
+          disabled={saving}
+          id={`${idPrefix}-save-expense-btn`}
+          className="flex-1 py-2.5 rounded-xl bg-[#1e2235] hover:bg-[#2c3150] text-white text-sm font-semibold transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+        >
+          {saving && <Loader2 size={14} className="animate-spin" />}
+          {saving ? "Saving…" : idPrefix === "add" ? "Add Expense" : "Update Expense"}
+        </button>
+      </div>
+    </form>
+  );
+}
+
 export default function ExpensesPage() {
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
+  const [filterDate, setFilterDate] = useState("");
+  const [page, setPage] = useState(1);
+  const pageSize = 10;
 
   const [addOpen, setAddOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
@@ -50,14 +134,16 @@ export default function ExpensesPage() {
   const fetchExpenses = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch("/api/expenses");
+      const params = filterDate ? `?date=${filterDate}` : "";
+      const res = await fetch(`/api/expenses${params}`);
       const data = await res.json().catch(() => ({}));
       if (!res.ok) { toast.error(data.message || "Failed to load expenses"); setExpenses([]); return; }
       setExpenses(data.expenses || []);
     } catch { toast.error("Failed to load expenses"); } finally { setLoading(false); }
-  }, []);
+  }, [filterDate]);
 
   useEffect(() => { fetchExpenses(); }, [fetchExpenses]);
+  useEffect(() => { setPage(1); }, [search, filterDate]);
 
   function openAdd() { setForm(EMPTY_FORM); setAddOpen(true); }
   function openEdit(exp: Expense) {
@@ -102,41 +188,9 @@ export default function ExpensesPage() {
     (e) => e.title.toLowerCase().includes(search.toLowerCase()) || (e.description?.toLowerCase().includes(search.toLowerCase()) ?? false)
   );
   const totalAmount = filtered.reduce((s, e) => s + e.amount, 0);
-
-  function ExpenseForm({ idPrefix, onSubmit }: { idPrefix: string; onSubmit: (e: React.FormEvent) => void }) {
-    return (
-      <form onSubmit={onSubmit} className="space-y-4">
-        <Field label="Title" required>
-          <Input id={`${idPrefix}-title`} placeholder="e.g. Store Rent" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} required />
-        </Field>
-        <Field label="Description">
-          <textarea
-            id={`${idPrefix}-desc`}
-            placeholder="Optional description…"
-            value={form.description}
-            onChange={(e) => setForm({ ...form, description: e.target.value })}
-            rows={2}
-            className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none focus:border-slate-400 focus:bg-white transition-all resize-none"
-          />
-        </Field>
-        <div className="grid grid-cols-2 gap-3">
-          <Field label="Amount (₹)" required>
-            <Input id={`${idPrefix}-amount`} type="number" min="0" step="1" placeholder="1000" value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} required />
-          </Field>
-          <Field label="Date">
-            <Input id={`${idPrefix}-date`} type="date" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} />
-          </Field>
-        </div>
-        <div className="flex gap-2.5 pt-1">
-          <button type="button" onClick={() => { setAddOpen(false); setEditOpen(false); }} className="flex-1 py-2.5 rounded-xl border border-slate-200 text-slate-600 text-sm font-medium hover:bg-slate-50 transition-all">Cancel</button>
-          <button type="submit" disabled={saving} id={`${idPrefix}-save-expense-btn`} className="flex-1 py-2.5 rounded-xl bg-[#1e2235] hover:bg-[#2c3150] text-white text-sm font-semibold transition-all disabled:opacity-50 flex items-center justify-center gap-2">
-            {saving && <Loader2 size={14} className="animate-spin" />}
-            {saving ? "Saving…" : idPrefix === "add" ? "Add Expense" : "Update Expense"}
-          </button>
-        </div>
-      </form>
-    );
-  }
+  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
+  const safePage = Math.min(page, totalPages);
+  const paged = filtered.slice((safePage - 1) * pageSize, safePage * pageSize);
 
   return (
     <AppShell title="Expenses" subtitle="Manage your business costs">
@@ -152,6 +206,27 @@ export default function ExpensesPage() {
             onChange={(e) => setSearch(e.target.value)}
             className="w-full bg-white border border-slate-200 rounded-xl pl-9 pr-4 py-2.5 text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none focus:border-slate-400 transition-all"
           />
+        </div>
+        <div className="relative">
+          <Calendar size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+          <input
+            type="date"
+            id="expense-date-filter"
+            value={filterDate}
+            onChange={(e) => setFilterDate(e.target.value)}
+            className="w-full sm:w-auto bg-white border border-slate-200 rounded-xl pl-9 pr-4 py-2.5 text-sm text-slate-800 focus:outline-none focus:border-slate-400 transition-all"
+          />
+          {filterDate && (
+            <button
+              type="button"
+              onClick={() => setFilterDate("")}
+              className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-all"
+              title="Clear date filter"
+              aria-label="Clear date filter"
+            >
+              <X size={14} />
+            </button>
+          )}
         </div>
         <button
           id="add-expense-btn"
@@ -205,7 +280,7 @@ export default function ExpensesPage() {
                   </td>
                 </tr>
               ) : (
-                filtered.map((exp) => (
+                paged.map((exp) => (
                   <tr key={exp._id} className="hover:bg-slate-50 transition-colors">
                     <td className="px-5 py-3.5">
                       <div className="flex items-center gap-3">
@@ -253,7 +328,7 @@ export default function ExpensesPage() {
               <p className="text-slate-400 text-sm">No expenses found</p>
             </div>
           ) : (
-            filtered.map((exp) => (
+            paged.map((exp) => (
               <div key={exp._id} className="px-4 py-4">
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex items-center gap-3 min-w-0">
@@ -281,12 +356,28 @@ export default function ExpensesPage() {
         </div>
       </div>
 
+      <Pagination page={safePage} pageSize={pageSize} total={filtered.length} onPageChange={setPage} />
+
       {/* Modals */}
       <Modal open={addOpen} onClose={() => setAddOpen(false)} title="Add Expense">
-        <ExpenseForm idPrefix="add" onSubmit={handleAdd} />
+        <ExpenseForm
+          idPrefix="add"
+          form={form}
+          setForm={setForm}
+          saving={saving}
+          onCancel={() => setAddOpen(false)}
+          onSubmit={handleAdd}
+        />
       </Modal>
       <Modal open={editOpen} onClose={() => setEditOpen(false)} title="Edit Expense">
-        <ExpenseForm idPrefix="edit" onSubmit={handleEdit} />
+        <ExpenseForm
+          idPrefix="edit"
+          form={form}
+          setForm={setForm}
+          saving={saving}
+          onCancel={() => setEditOpen(false)}
+          onSubmit={handleEdit}
+        />
       </Modal>
       <Modal open={viewOpen} onClose={() => setViewOpen(false)} title="Expense Details">
         {selected && (

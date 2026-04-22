@@ -5,8 +5,9 @@ import AppShell from "@/components/AppShell";
 import Modal from "@/components/Modal";
 import ConfirmDialog from "@/components/ConfirmDialog";
 import { Field, Input } from "@/components/FormFields";
+import Pagination from "@/components/Pagination";
 import toast from "react-hot-toast";
-import { Plus, Pencil, Trash2, Eye, Car, Search, Loader2, Calendar } from "lucide-react";
+import { Plus, Pencil, Trash2, Eye, Car, Search, Loader2, Calendar, X } from "lucide-react";
 import { format } from "date-fns";
 
 interface CarEntry {
@@ -27,11 +28,102 @@ const EMPTY_FORM = {
   notes: "",
 };
 
+function CarForm({
+  idPrefix,
+  form,
+  setForm,
+  saving,
+  onCancel,
+  onSubmit,
+}: {
+  idPrefix: string;
+  form: typeof EMPTY_FORM;
+  setForm: (next: typeof EMPTY_FORM) => void;
+  saving: boolean;
+  onCancel: () => void;
+  onSubmit: (e: React.FormEvent) => void;
+}) {
+  return (
+    <form onSubmit={onSubmit} className="space-y-4">
+      <Field label="Car Name" required>
+        <Input
+          id={`${idPrefix}-car-name`}
+          placeholder="e.g. Toyota Fortuner"
+          value={form.carName}
+          onChange={(e) => setForm({ ...form, carName: e.target.value })}
+          required
+        />
+      </Field>
+      <Field label="Number Plate" required>
+        <Input
+          id={`${idPrefix}-car-number`}
+          placeholder="e.g. GJ01AB1234"
+          value={form.carNumber}
+          onChange={(e) => setForm({ ...form, carNumber: e.target.value.toUpperCase() })}
+          required
+        />
+      </Field>
+      <div className="grid grid-cols-2 gap-3">
+        <Field label="Amount (₹)" required>
+          <Input
+            id={`${idPrefix}-car-amount`}
+            type="number"
+            min="0"
+            step="1"
+            placeholder="500"
+            value={form.amount}
+            onChange={(e) => setForm({ ...form, amount: e.target.value })}
+            required
+          />
+        </Field>
+        <Field label="Date">
+          <Input
+            id={`${idPrefix}-car-date`}
+            type="date"
+            value={form.date}
+            onChange={(e) => setForm({ ...form, date: e.target.value })}
+          />
+        </Field>
+      </div>
+      <Field label="Notes">
+        <textarea
+          id={`${idPrefix}-car-notes`}
+          placeholder="Optional notes…"
+          value={form.notes}
+          onChange={(e) => setForm({ ...form, notes: e.target.value })}
+          rows={2}
+          className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none focus:border-slate-400 focus:bg-white transition-all resize-none"
+        />
+      </Field>
+      <div className="flex gap-2.5 pt-1">
+        <button
+          type="button"
+          onClick={onCancel}
+          className="flex-1 py-2.5 rounded-xl border border-slate-200 text-slate-600 text-sm font-medium hover:bg-slate-50 transition-all"
+        >
+          Cancel
+        </button>
+        <button
+          type="submit"
+          disabled={saving}
+          id={`${idPrefix}-save-car-btn`}
+          className="flex-1 py-2.5 rounded-xl bg-[#1e2235] hover:bg-[#2c3150] text-white text-sm font-semibold transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+        >
+          {saving && <Loader2 size={14} className="animate-spin" />}
+          {saving ? "Saving…" : idPrefix === "add" ? "Add Entry" : "Update Entry"}
+        </button>
+      </div>
+    </form>
+  );
+}
+
 export default function CarsPage() {
   const [entries, setEntries] = useState<CarEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
-  const [filterDate, setFilterDate] = useState(format(new Date(), "yyyy-MM-dd"));
+  const [filterDate, setFilterDate] = useState("");
+  const [page, setPage] = useState(1);
+  const pageSize = 10;
 
   const [addOpen, setAddOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
@@ -55,6 +147,7 @@ export default function CarsPage() {
   }, [filterDate]);
 
   useEffect(() => { fetchEntries(); }, [fetchEntries]);
+  useEffect(() => { setPage(1); }, [search, filterDate]);
 
   function openAdd() { setForm(EMPTY_FORM); setAddOpen(true); }
   function openEdit(e: CarEntry) {
@@ -101,44 +194,9 @@ export default function CarsPage() {
     (e) => e.carName.toLowerCase().includes(search.toLowerCase()) || e.carNumber.toLowerCase().includes(search.toLowerCase())
   );
   const totalAmount = filtered.reduce((s, e) => s + e.amount, 0);
-
-  function CarForm({ idPrefix, onSubmit }: { idPrefix: string; onSubmit: (e: React.FormEvent) => void }) {
-    return (
-      <form onSubmit={onSubmit} className="space-y-4">
-        <Field label="Car Name" required>
-          <Input id={`${idPrefix}-car-name`} placeholder="e.g. Toyota Fortuner" value={form.carName} onChange={(e) => setForm({ ...form, carName: e.target.value })} required />
-        </Field>
-        <Field label="Number Plate" required>
-          <Input id={`${idPrefix}-car-number`} placeholder="e.g. GJ01AB1234" value={form.carNumber} onChange={(e) => setForm({ ...form, carNumber: e.target.value.toUpperCase() })} required />
-        </Field>
-        <div className="grid grid-cols-2 gap-3">
-          <Field label="Amount (₹)" required>
-            <Input id={`${idPrefix}-car-amount`} type="number" min="0" step="1" placeholder="500" value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} required />
-          </Field>
-          <Field label="Date">
-            <Input id={`${idPrefix}-car-date`} type="date" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} />
-          </Field>
-        </div>
-        <Field label="Notes">
-          <textarea
-            id={`${idPrefix}-car-notes`}
-            placeholder="Optional notes…"
-            value={form.notes}
-            onChange={(e) => setForm({ ...form, notes: e.target.value })}
-            rows={2}
-            className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none focus:border-slate-400 focus:bg-white transition-all resize-none"
-          />
-        </Field>
-        <div className="flex gap-2.5 pt-1">
-          <button type="button" onClick={() => { setAddOpen(false); setEditOpen(false); }} className="flex-1 py-2.5 rounded-xl border border-slate-200 text-slate-600 text-sm font-medium hover:bg-slate-50 transition-all">Cancel</button>
-          <button type="submit" disabled={saving} id={`${idPrefix}-save-car-btn`} className="flex-1 py-2.5 rounded-xl bg-[#1e2235] hover:bg-[#2c3150] text-white text-sm font-semibold transition-all disabled:opacity-50 flex items-center justify-center gap-2">
-            {saving && <Loader2 size={14} className="animate-spin" />}
-            {saving ? "Saving…" : idPrefix === "add" ? "Add Entry" : "Update Entry"}
-          </button>
-        </div>
-      </form>
-    );
-  }
+  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
+  const safePage = Math.min(page, totalPages);
+  const paged = filtered.slice((safePage - 1) * pageSize, safePage * pageSize);
 
   return (
     <AppShell title="Car Entries" subtitle="Track every car wash">
@@ -164,6 +222,17 @@ export default function CarsPage() {
             onChange={(e) => setFilterDate(e.target.value)}
             className="w-full sm:w-auto bg-white border border-slate-200 rounded-xl pl-9 pr-4 py-2.5 text-sm text-slate-800 focus:outline-none focus:border-slate-400 transition-all"
           />
+          {filterDate && (
+            <button
+              type="button"
+              onClick={() => setFilterDate("")}
+              className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-all"
+              title="Clear date filter"
+              aria-label="Clear date filter"
+            >
+              <X size={14} />
+            </button>
+          )}
         </div>
         <button
           id="add-car-btn"
@@ -217,7 +286,7 @@ export default function CarsPage() {
                   </td>
                 </tr>
               ) : (
-                filtered.map((entry) => (
+                paged.map((entry) => (
                   <tr key={entry._id} className="hover:bg-slate-50 transition-colors">
                     <td className="px-5 py-3.5">
                       <div className="flex items-center gap-3">
@@ -265,7 +334,7 @@ export default function CarsPage() {
               <p className="text-slate-400 text-sm">No car entries found</p>
             </div>
           ) : (
-            filtered.map((entry) => (
+            paged.map((entry) => (
               <div key={entry._id} className="px-4 py-4">
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex items-center gap-3 min-w-0">
@@ -293,12 +362,28 @@ export default function CarsPage() {
         </div>
       </div>
 
+      <Pagination page={safePage} pageSize={pageSize} total={filtered.length} onPageChange={setPage} />
+
       {/* Modals */}
       <Modal open={addOpen} onClose={() => setAddOpen(false)} title="Add Car Entry">
-        <CarForm idPrefix="add" onSubmit={handleAdd} />
+        <CarForm
+          idPrefix="add"
+          form={form}
+          setForm={setForm}
+          saving={saving}
+          onCancel={() => setAddOpen(false)}
+          onSubmit={handleAdd}
+        />
       </Modal>
       <Modal open={editOpen} onClose={() => setEditOpen(false)} title="Edit Car Entry">
-        <CarForm idPrefix="edit" onSubmit={handleEdit} />
+        <CarForm
+          idPrefix="edit"
+          form={form}
+          setForm={setForm}
+          saving={saving}
+          onCancel={() => setEditOpen(false)}
+          onSubmit={handleEdit}
+        />
       </Modal>
       <Modal open={viewOpen} onClose={() => setViewOpen(false)} title="Car Details">
         {selected && (

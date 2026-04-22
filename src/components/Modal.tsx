@@ -31,12 +31,11 @@ export default function Modal({ open, onClose, title, children, maxWidth = "max-
   return (
     <div
       ref={overlayRef}
-      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:p-4 bg-black/40 backdrop-blur-sm"
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm overscroll-contain"
       onClick={(e) => { if (e.target === overlayRef.current) onClose(); }}
     >
       <div
-        className={`w-full ${maxWidth} bg-white border border-slate-200 rounded-t-2xl sm:rounded-2xl shadow-xl`}
-        style={{ maxHeight: "92dvh", overflowY: "auto" }}
+        className={`w-full ${maxWidth} bg-white border border-slate-200 rounded-2xl shadow-xl max-h-[92dvh] overflow-y-auto`}
       >
         <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 sticky top-0 bg-white rounded-t-2xl sm:rounded-t-2xl z-10">
           <h2 className="text-slate-800 text-sm font-semibold">{title}</h2>

@@ -15,7 +15,6 @@ interface Stats {
 
 const PERIODS = [
   { label: "Today", value: "today" },
-  { label: "Week", value: "week" },
   { label: "Month", value: "month" },
   { label: "All Time", value: "all" },
 ];
@@ -74,8 +73,9 @@ export default function DashboardPage() {
   return (
     <AppShell title="Dashboard" subtitle="Business overview">
       {/* Period selector + refresh */}
-      <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
-        <div className="flex bg-white border border-slate-200 rounded-xl p-1 gap-0.5">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-6">
+        <div className="bg-white border border-slate-200 rounded-xl p-1">
+          <div className="grid grid-cols-3 gap-0.5">
           {PERIODS.map((p) => (
             <button
               key={p.value}
@@ -85,18 +85,19 @@ export default function DashboardPage() {
                 period === p.value
                   ? "bg-[#1e2235] text-white"
                   : "text-slate-500 hover:text-slate-800 hover:bg-slate-100"
-              }`}
+              } text-center`}
             >
               {p.label}
             </button>
           ))}
+          </div>
         </div>
 
         <button
           id="refresh-stats"
           onClick={fetchStats}
           disabled={loading}
-          className="flex items-center gap-2 px-3.5 py-2 rounded-xl text-sm font-medium text-slate-500 hover:text-slate-800 bg-white border border-slate-200 hover:bg-slate-50 transition-all disabled:opacity-50"
+          className="w-full sm:w-auto flex items-center justify-center gap-2 px-3.5 py-2 rounded-xl text-sm font-medium text-slate-500 hover:text-slate-800 bg-white border border-slate-200 hover:bg-slate-50 transition-all disabled:opacity-50"
         >
           <RefreshCw size={14} className={loading ? "animate-spin" : ""} />
           Refresh
@@ -104,7 +105,7 @@ export default function DashboardPage() {
       </div>
 
       {/* Stat Cards */}
-      <div className="grid grid-cols-2 xl:grid-cols-4 gap-3 mb-5">
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3 mb-5">
         <StatCard title="Total Income" value={stats?.totalIncome ?? 0} icon={TrendingUp} accent="bg-emerald-50 text-emerald-600" loading={loading} />
         <StatCard title="Total Expenses" value={stats?.totalExpenses ?? 0} icon={TrendingDown} accent="bg-red-50 text-red-500" loading={loading} />
         <StatCard title="Cars Washed" value={stats?.totalCars ?? 0} icon={Car} accent="bg-blue-50 text-blue-600" loading={loading} isCount />

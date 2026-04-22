@@ -14,7 +14,7 @@ export default function AppShell({ title, subtitle, children }: AppShellProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   return (
-    <div className="flex h-screen overflow-hidden bg-[#f4f6f9]">
+    <div className="flex h-[100dvh] overflow-hidden bg-[#f4f6f9]">
       <Sidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
       <div className="flex-1 flex flex-col overflow-hidden min-w-0">
         <Header title={title} subtitle={subtitle} onMenuClick={() => setSidebarOpen(true)} />

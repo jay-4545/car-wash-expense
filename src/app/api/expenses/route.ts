@@ -18,13 +18,22 @@ export async function GET(req: NextRequest) {
     await connectDB();
 
     const { searchParams } = new URL(req.url);
+    const date = searchParams.get("date");
     const startDate = searchParams.get("startDate");
     const endDate = searchParams.get("endDate");
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const filter: any = {};
 
-    if (startDate && endDate) {
+    if (date) {
+      const base = parseDateInput(date);
+      if (!base) return NextResponse.json({ message: "Invalid date" }, { status: 400 });
+      const start = new Date(base);
+      start.setHours(0, 0, 0, 0);
+      const end = new Date(base);
+      end.setHours(23, 59, 59, 999);
+      filter.date = { $gte: start, $lte: end };
+    } else if (startDate && endDate) {
       const startBase = parseDateInput(startDate);
       const endBase = parseDateInput(endDate);
       if (!startBase || !endBase) {

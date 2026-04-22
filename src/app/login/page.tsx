@@ -34,7 +34,7 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#f4f6f9] flex items-center justify-center p-4">
+    <div className="min-h-[100dvh] bg-[#f4f6f9] flex items-center justify-center p-4 overflow-hidden">
       <div className="w-full max-w-[400px]">
         {/* Brand */}
         <div className="mb-8 text-center">
